@@ -3,47 +3,112 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Earth - Black Hole Simulation</title>
+  <title>Earth vs Black Hole Simulation</title>
   <style>
-    body { margin: 0; overflow: hidden; }
+    body { margin: 0; overflow: hidden; font-family: sans-serif; }
     canvas { display: block; }
+
     .controls {
       position: absolute;
       top: 10px;
       left: 10px;
-      background: rgba(255, 255, 255, 0.8);
-      padding: 10px;
-      border-radius: 5px;
-      font-family: sans-serif;
+      background: rgba(255, 255, 255, 0.85);
+      padding: 10px 15px;
+      border-radius: 6px;
+      font-size: 14px;
+      line-height: 1.4;
+      max-width: 280px;
     }
-    .controls label { display: block; margin-bottom: 5px; }
+
+    .controls h2 {
+      margin-top: 0;
+      font-size: 16px;
+      font-weight: bold;
+    }
+
+    .slider-group {
+      margin-bottom: 10px;
+    }
+
+    .slider-group label {
+      display: flex;
+      justify-content: space-between;
+    }
+
+    .slider-group input[type=range] {
+      width: 100%;
+    }
+
+    .label {
+      position: absolute;
+      color: black;
+      font-weight: bold;
+      text-shadow: 1px 1px 2px white;
+      pointer-events: none;
+    }
   </style>
 </head>
 <body>
+
   <div class="controls">
-    <label>Black Hole Mass (M☉): <input type="range" id="mass" min="1" max="20" value="10"></label>
-    <label>X Position (sim units): <input type="range" id="xPos" min="-10" max="0" value="-5" step="0.1"></label>
-    <label>Y Position (sim units): <input type="range" id="yPos" min="-5" max="5" value="-2.5" step="0.1"></label>
-    <label>X Velocity (km/s): <input type="range" id="xVel" min="-20" max="20" value="0"></label>
-    <label>Y Velocity (km/s): <input type="range" id="yVel" min="-20" max="20" value="0"></label>
+    <h2>Black Hole Parameters</h2>
+
+    <div class="slider-group">
+      <label>Mass (M☉): <span id="massValue">10</span></label>
+      <input type="range" id="mass" min="1" max="20" value="10" step="0.1">
+    </div>
+
+    <div class="slider-group">
+      <label>X Position: <span id="xPosValue">-5</span></label>
+      <input type="range" id="xPos" min="-10" max="0" value="-5" step="0.1">
+    </div>
+
+    <div class="slider-group">
+      <label>Y Position: <span id="yPosValue">-2.5</span></label>
+      <input type="range" id="yPos" min="-5" max="5" value="-2.5" step="0.1">
+    </div>
+
+    <div class="slider-group">
+      <label>X Velocity (km/s): <span id="xVelValue">0</span></label>
+      <input type="range" id="xVel" min="-20" max="20" value="0">
+    </div>
+
+    <div class="slider-group">
+      <label>Y Velocity (km/s): <span id="yVelValue">0</span></label>
+      <input type="range" id="yVel" min="-20" max="20" value="0">
+    </div>
+
+    <h2>Simulation</h2>
+    <div class="slider-group">
+      <label>Time Scale: <span id="timeScaleValue">1</span>x</label>
+      <input type="range" id="timeScale" min="0.1" max="10" step="0.1" value="1">
+    </div>
   </div>
 
+  <div class="label" id="earthLabel">🌍 Earth</div>
+  <div class="label" id="bhLabel">🕳️ Black Hole</div>
+
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
   <script>
-    const AU = 1.496e+8; // km
-    const SCALE = 1e6;   // 1 unit = 1 million km
-    const G = 6.67430e-20; // km^3/kg/s^2
-    const M_sun = 1.989e30; // kg
+    const AU = 1.496e+8;
+    const SCALE = 1e6;
+    const G = 6.67430e-20;
+    const M_sun = 1.989e30;
+    const M_earth = 5.972e24;
 
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0xeeeeee);
 
-    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 2000);
     camera.position.z = 300;
 
-    const renderer = new THREE.WebGLRenderer();
+    const renderer = new THREE.WebGLRenderer({antialias: true});
     renderer.setSize(window.innerWidth, window.innerHeight);
     document.body.appendChild(renderer.domElement);
+
+    const controls = new THREE.OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
 
     const earthGeometry = new THREE.SphereGeometry(1, 32, 32);
     const earthMaterial = new THREE.MeshBasicMaterial({ color: 0x1E90FF });
@@ -55,43 +120,76 @@
     const blackHole = new THREE.Mesh(blackHoleGeometry, blackHoleMaterial);
     scene.add(blackHole);
 
-    // Initial black hole state (simulation units)
     let M_bh = 10;
     let r_bh = new THREE.Vector3(-5, -2.5, 0);
     let v_bh = new THREE.Vector3(0, 0, 0);
-
-    // Earth state
     let r_earth = new THREE.Vector3(0, 0, 0);
-    let v_earth = new THREE.Vector3(0, 29.78 / SCALE, 0); // scaled km/s
+    let v_earth = new THREE.Vector3(0, 29.78 / SCALE, 0);
 
-    // Link sliders to simulation
-    document.getElementById('mass').addEventListener('input', e => M_bh = parseFloat(e.target.value));
-    document.getElementById('xPos').addEventListener('input', e => r_bh.x = parseFloat(e.target.value));
-    document.getElementById('yPos').addEventListener('input', e => r_bh.y = parseFloat(e.target.value));
-    document.getElementById('xVel').addEventListener('input', e => v_bh.x = parseFloat(e.target.value));
-    document.getElementById('yVel').addEventListener('input', e => v_bh.y = parseFloat(e.target.value));
+    let timeScale = 1.0;
+
+    // Labels
+    const earthLabel = document.getElementById('earthLabel');
+    const bhLabel = document.getElementById('bhLabel');
+
+    // Update slider values
+    const sliders = ['mass', 'xPos', 'yPos', 'xVel', 'yVel', 'timeScale'];
+    sliders.forEach(id => {
+      const slider = document.getElementById(id);
+      const label = document.getElementById(id + 'Value');
+      slider.addEventListener('input', () => {
+        label.textContent = slider.value;
+        updateParams();
+      });
+    });
+
+    function updateParams() {
+      M_bh = parseFloat(document.getElementById('mass').value);
+      r_bh.x = parseFloat(document.getElementById('xPos').value);
+      r_bh.y = parseFloat(document.getElementById('yPos').value);
+      v_bh.x = parseFloat(document.getElementById('xVel').value);
+      v_bh.y = parseFloat(document.getElementById('yVel').value);
+      timeScale = parseFloat(document.getElementById('timeScale').value);
+    }
 
     let lastTime = performance.now();
 
+    function updateLabels() {
+      const vector = new THREE.Vector3();
+      const update = (object, label) => {
+        vector.copy(object.position);
+        vector.project(camera);
+
+        const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+        const y = ( - vector.y * 0.5 + 0.5) * window.innerHeight;
+
+        label.style.left = `${x}px`;
+        label.style.top = `${y}px`;
+      };
+
+      update(earth, earthLabel);
+      update(blackHole, bhLabel);
+    }
+
     function animate(now) {
       requestAnimationFrame(animate);
-      const delta = (now - lastTime) / 1000; // seconds
+      const delta = ((now - lastTime) / 1000) * timeScale;
       lastTime = now;
 
-      // Update black hole position
       r_bh.add(v_bh.clone().multiplyScalar(delta / SCALE));
       blackHole.position.copy(r_bh);
 
-      // Compute force from BH on Earth
       const deltaR = new THREE.Vector3().subVectors(r_bh, r_earth);
       const dist = deltaR.length();
-      const forceMag = G * M_bh * M_sun / (dist * dist);
-      const accel = deltaR.normalize().multiplyScalar(forceMag / 5.972e24); // Earth's mass
+      const force = G * M_bh * M_sun / (dist * dist);
+      const accel = deltaR.normalize().multiplyScalar(force / M_earth);
 
       v_earth.add(accel.multiplyScalar(delta));
       r_earth.add(v_earth.clone().multiplyScalar(delta));
       earth.position.copy(r_earth);
 
+      updateLabels();
+      controls.update();
       renderer.render(scene, camera);
     }
 
