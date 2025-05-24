@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Earth - Black Hole Gravity Simulation</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+        .controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            background: rgba(255, 255, 255, 0.8);
+            padding: 10px;
+            border-radius: 5px;
+            font-family: sans-serif;
+        }
+        .controls label { display: block; margin-bottom: 5px; }
+    </style>
+</head>
+<body>
+    <div class="controls">
+        <label>Black Hole Mass (M☉): <input type="range" id="mass" min="1" max="20" value="10"></label>
+        <label>X Position (AU): <input type="range" id="xPos" min="-200" max="0" value="-100"></label>
+        <label>Y Position (AU): <input type="range" id="yPos" min="-100" max="100" value="-50"></label>
+        <label>X Velocity (km/s): <input type="range" id="xVel" min="-20" max="20" value="0"></label>
+        <label>Y Velocity (km/s): <input type="range" id="yVel" min="-20" max="20" value="0"></label>
+    </div>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <script>
+        // Constants and conversions
+        const AU = 1.496e+8; // km
+        const SCALE = 1e6;   // 1 unit = 1 million km
+        const G = 6.67430e-20; // km^3/kg/s^2 (adjusted for scale)
+        const M_sun = 1.989e30; // kg
+
+        // Scene setup
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth/window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        // Earth
+        const earthGeometry = new THREE.SphereGeometry(0.5, 32, 32);
+        const earthMaterial = new THREE.MeshBasicMaterial({ color: 0x1E90FF });
+        const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+        scene.add(earth);
+
+        // Black Hole
+        const blackHoleGeometry = new THREE.SphereGeometry(1.2, 32, 32);
+        const blackHoleMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
+        const blackHole = new THREE.Mesh(blackHoleGeometry, blackHoleMaterial);
+        scene.add(blackHole);
+
+        camera.position.z = 100;
+
+        // Sliders
+        let M_bh = 10;
+        let r_bh = new THREE.Vector3(-100 * AU / SCALE, -50 * AU / SCALE, 0);
+        let v_bh = new THREE.Vector3(0, 0, 0);
+
+        document.getElementById('mass').addEventListener('input', function() {
+            M_bh = parseFloat(this.value);
+        });
+        document.getElementById('xPos').addEventListener('input', function() {
+            r_bh.x = parseFloat(this.value) * AU / SCALE;
+        });
+        document.getElementById('yPos').addEventListener('input', function() {
+            r_bh.y = parseFloat(this.value) * AU / SCALE;
+        });
+        document.getElementById('xVel').addEventListener('input', function() {
+            v_bh.x = parseFloat(this.value);
+        });
+        document.getElementById('yVel').addEventListener('input', function() {
+            v_bh.y = parseFloat(this.value);
+        });
+
+        // Earth initial state
+        let r_earth = new THREE.Vector3(0, 0, 0);
+        let v_earth = new THREE.Vector3(0, 29.78, 0); // Approx Earth's orbital speed in km/s
+
+        // Convert to scale
+        r_earth.divideScalar(SCALE);
+        v_earth.divideScalar(SCALE);
+
+        // Time control
+        let lastTime = performance.now();
+
+        function animate(now) {
+            requestAnimationFrame(animate);
+            let delta = (now - lastTime) / 1000; // in seconds
+            lastTime = now;
+
+            // Black hole position updates (if it moves)
+            r_bh.add(v_bh.clone().multiplyScalar(delta / SCALE)); // km/s to scaled units
+            blackHole.position.copy(r_bh);
+
+            // Gravitational force from BH to Earth
+            const deltaR = new THREE.Vector3().subVectors(r_bh, r_earth);
+            const distance = deltaR.length();
+            const forceMag = G * M_bh * M_sun / (distance * distance);
+            const accel = deltaR.normalize().multiplyScalar(forceMag / 5.972e24); // Earth's mass
+
+            // Update velocity and position of Earth
+            v_earth.add(accel.multiplyScalar(delta));
+            r_earth.add(v_earth.clone().multiplyScalar(delta));
+
+            earth.position.copy(r_earth);
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
