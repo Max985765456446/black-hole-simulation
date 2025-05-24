@@ -2,40 +2,30 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
   <title>Earth vs Black Hole Simulation</title>
   <style>
-    body { margin: 0; overflow: hidden; font-family: sans-serif; }
+    html, body { margin: 0; padding: 0; overflow: hidden; height: 100%; }
     canvas { display: block; }
 
     .controls {
       position: absolute;
       top: 10px;
       left: 10px;
-      background: rgba(255, 255, 255, 0.85);
-      padding: 10px 15px;
-      border-radius: 6px;
+      background: rgba(255, 255, 255, 0.9);
+      padding: 12px;
+      border-radius: 8px;
+      font-family: sans-serif;
       font-size: 14px;
-      line-height: 1.4;
-      max-width: 280px;
+      max-width: 90vw;
     }
 
-    .controls h2 {
-      margin-top: 0;
-      font-size: 16px;
-      font-weight: bold;
+    .controls label {
+      display: block;
+      margin-bottom: 8px;
     }
 
-    .slider-group {
-      margin-bottom: 10px;
-    }
-
-    .slider-group label {
-      display: flex;
-      justify-content: space-between;
-    }
-
-    .slider-group input[type=range] {
+    .controls input[type=range] {
       width: 100%;
     }
 
@@ -45,154 +35,138 @@
       font-weight: bold;
       text-shadow: 1px 1px 2px white;
       pointer-events: none;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
-
   <div class="controls">
-    <h2>Black Hole Parameters</h2>
-
-    <div class="slider-group">
-      <label>Mass (M☉): <span id="massValue">10</span></label>
-      <input type="range" id="mass" min="1" max="20" value="10" step="0.1">
-    </div>
-
-    <div class="slider-group">
-      <label>X Position: <span id="xPosValue">-5</span></label>
-      <input type="range" id="xPos" min="-10" max="0" value="-5" step="0.1">
-    </div>
-
-    <div class="slider-group">
-      <label>Y Position: <span id="yPosValue">-2.5</span></label>
-      <input type="range" id="yPos" min="-5" max="5" value="-2.5" step="0.1">
-    </div>
-
-    <div class="slider-group">
-      <label>X Velocity (km/s): <span id="xVelValue">0</span></label>
-      <input type="range" id="xVel" min="-20" max="20" value="0">
-    </div>
-
-    <div class="slider-group">
-      <label>Y Velocity (km/s): <span id="yVelValue">0</span></label>
-      <input type="range" id="yVel" min="-20" max="20" value="0">
-    </div>
-
-    <h2>Simulation</h2>
-    <div class="slider-group">
-      <label>Time Scale: <span id="timeScaleValue">1</span>x</label>
-      <input type="range" id="timeScale" min="0.1" max="10" step="0.1" value="1">
-    </div>
+    <label>Mass (M☉): <input type="range" id="mass" min="1" max="20" value="10" step="0.1"></label>
+    <label>X Pos: <input type="range" id="xPos" min="-10" max="0" value="-5" step="0.1"></label>
+    <label>Y Pos: <input type="range" id="yPos" min="-5" max="5" value="-2.5" step="0.1"></label>
+    <label>X Vel (km/s): <input type="range" id="xVel" min="-20" max="20" value="0"></label>
+    <label>Y Vel (km/s): <input type="range" id="yVel" min="-20" max="20" value="0"></label>
+    <label>Time Scale: <input type="range" id="timeScale" min="0.1" max="10" value="1" step="0.1"></label>
   </div>
 
   <div class="label" id="earthLabel">🌍 Earth</div>
   <div class="label" id="bhLabel">🕳️ Black Hole</div>
 
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/controls/OrbitControls.min.js"></script>
   <script>
-    const AU = 1.496e+8;
+    const AU = 1.496e+8; // km
     const SCALE = 1e6;
     const G = 6.67430e-20;
     const M_sun = 1.989e30;
     const M_earth = 5.972e24;
 
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0xeeeeee);
+    scene.background = new THREE.Color(0xf0f0f0);
 
-    const camera = new THREE.PerspectiveCamera(70, window.innerWidth/window.innerHeight, 0.1, 2000);
-    camera.position.z = 300;
+    const camera = new THREE.PerspectiveCamera(70, window.innerWidth / window.innerHeight, 0.1, 2000);
+    camera.position.set(0, 0, 100);
 
     const renderer = new THREE.WebGLRenderer({antialias: true});
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio);
     document.body.appendChild(renderer.domElement);
 
     const controls = new THREE.OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
+    controls.dampingFactor = 0.1;
+    controls.enableZoom = true;
+    controls.enablePan = true;
+    controls.update();
 
-    const earthGeometry = new THREE.SphereGeometry(1, 32, 32);
-    const earthMaterial = new THREE.MeshBasicMaterial({ color: 0x1E90FF });
-    const earth = new THREE.Mesh(earthGeometry, earthMaterial);
+    // Earth
+    const earth = new THREE.Mesh(
+      new THREE.SphereGeometry(1, 32, 32),
+      new THREE.MeshBasicMaterial({ color: 0x1E90FF })
+    );
     scene.add(earth);
 
-    const blackHoleGeometry = new THREE.SphereGeometry(2, 32, 32);
-    const blackHoleMaterial = new THREE.MeshBasicMaterial({ color: 0x000000 });
-    const blackHole = new THREE.Mesh(blackHoleGeometry, blackHoleMaterial);
+    // Black Hole
+    const blackHole = new THREE.Mesh(
+      new THREE.SphereGeometry(2, 32, 32),
+      new THREE.MeshBasicMaterial({ color: 0x000000 })
+    );
     scene.add(blackHole);
 
     let M_bh = 10;
     let r_bh = new THREE.Vector3(-5, -2.5, 0);
     let v_bh = new THREE.Vector3(0, 0, 0);
+
     let r_earth = new THREE.Vector3(0, 0, 0);
     let v_earth = new THREE.Vector3(0, 29.78 / SCALE, 0);
 
     let timeScale = 1.0;
 
+    const updateFromUI = () => {
+      M_bh = parseFloat(document.getElementById('mass').value);
+      r_bh.set(
+        parseFloat(document.getElementById('xPos').value),
+        parseFloat(document.getElementById('yPos').value),
+        0
+      );
+      v_bh.set(
+        parseFloat(document.getElementById('xVel').value),
+        parseFloat(document.getElementById('yVel').value),
+        0
+      );
+      timeScale = parseFloat(document.getElementById('timeScale').value);
+    };
+
+    // Attach listeners
+    document.querySelectorAll('.controls input').forEach(el => {
+      el.addEventListener('input', updateFromUI);
+    });
+
     // Labels
     const earthLabel = document.getElementById('earthLabel');
     const bhLabel = document.getElementById('bhLabel');
 
-    // Update slider values
-    const sliders = ['mass', 'xPos', 'yPos', 'xVel', 'yVel', 'timeScale'];
-    sliders.forEach(id => {
-      const slider = document.getElementById(id);
-      const label = document.getElementById(id + 'Value');
-      slider.addEventListener('input', () => {
-        label.textContent = slider.value;
-        updateParams();
-      });
-    });
-
-    function updateParams() {
-      M_bh = parseFloat(document.getElementById('mass').value);
-      r_bh.x = parseFloat(document.getElementById('xPos').value);
-      r_bh.y = parseFloat(document.getElementById('yPos').value);
-      v_bh.x = parseFloat(document.getElementById('xVel').value);
-      v_bh.y = parseFloat(document.getElementById('yVel').value);
-      timeScale = parseFloat(document.getElementById('timeScale').value);
-    }
+    const updateLabel = (labelEl, obj) => {
+      const vector = obj.position.clone().project(camera);
+      const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
+      const y = (-vector.y * 0.5 + 0.5) * window.innerHeight;
+      labelEl.style.left = x + 'px';
+      labelEl.style.top = y + 'px';
+    };
 
     let lastTime = performance.now();
-
-    function updateLabels() {
-      const vector = new THREE.Vector3();
-      const update = (object, label) => {
-        vector.copy(object.position);
-        vector.project(camera);
-
-        const x = (vector.x * 0.5 + 0.5) * window.innerWidth;
-        const y = ( - vector.y * 0.5 + 0.5) * window.innerHeight;
-
-        label.style.left = `${x}px`;
-        label.style.top = `${y}px`;
-      };
-
-      update(earth, earthLabel);
-      update(blackHole, bhLabel);
-    }
 
     function animate(now) {
       requestAnimationFrame(animate);
       const delta = ((now - lastTime) / 1000) * timeScale;
       lastTime = now;
 
+      // Update positions
       r_bh.add(v_bh.clone().multiplyScalar(delta / SCALE));
       blackHole.position.copy(r_bh);
 
-      const deltaR = new THREE.Vector3().subVectors(r_bh, r_earth);
+      const deltaR = r_bh.clone().sub(r_earth);
       const dist = deltaR.length();
       const force = G * M_bh * M_sun / (dist * dist);
       const accel = deltaR.normalize().multiplyScalar(force / M_earth);
-
       v_earth.add(accel.multiplyScalar(delta));
       r_earth.add(v_earth.clone().multiplyScalar(delta));
       earth.position.copy(r_earth);
 
-      updateLabels();
+      updateLabel(earthLabel, earth);
+      updateLabel(bhLabel, blackHole);
+
       controls.update();
       renderer.render(scene, camera);
     }
 
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+
+    updateFromUI(); // Set initial parameters
     animate();
   </script>
 </body>
